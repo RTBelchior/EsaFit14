@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Planos de Treino</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 5px;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            min-height: 38px;
+            background-color: #fff;
+        }
+        
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            margin: 2px;
+            padding: 2px 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .tag .close {
+            margin-left: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .tag-input {
+            flex-grow: 1;
+            border: none;
+            outline: none;
+            padding: 5px;
+            font-size: 14px;
+            min-width: 60px;
+        }
+        
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+        
+        /* Estilo para feedback de erro */
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 80%;
+            color: #dc3545;
+        }
+        
+        .is-invalid ~ .invalid-feedback {
+            display: block;
+        }
+        
+        .is-invalid {
+            border-color: #dc3545;
+            padding-right: calc(1.5em + 0.75rem);
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2 class="text-center mb-4">Adicionar Novo Treino</h2>
+            
+            <form id="treinoForm" method="post" action="Salvar_Treino.php" enctype="multipart/form-data">
+                <!-- Nome do Treino -->
+                <div class="mb-3">
+                    <label for="nomeTreino" class="form-label required-field">Nome do Treino</label>
+                    <input type="text" class="form-control" id="nomeTreino" name="nome_treino" required>
+                </div>
+                
+                <!-- Imagem -->
+                <div class="mb-3">
+                    <label for="imagemTreino" class="form-label">Imagem</label>
+                    <div class="input-group">
+                        <input type="file" class="form-control" id="imagemTreino" name="imagem_treino" accept="image/jpeg,image/png,image/gif">
+                        <button class="btn btn-outline-secondary" type="button" id="limparImagem">Limpar</button>
+                    </div>
+                    <div class="invalid-feedback" id="imagemFeedback">
+                        Apenas imagens JPG, PNG e GIF são permitidas.
+                    </div>
+                    <small class="text-muted">Formatos aceites: JPG, PNG e GIF (máx. 10MB)</small>
+                    <div id="previewImagem" class="mt-2"></div>
+                </div>
+                
+                <!-- Músculos Alvos -->
+                <div class="mb-3">
+                    <label for="musculosAlvos" class="form-label">Tipo de Treino</label>
+                    <div class="tag-container" id="tagContainer">
+                        <input type="text" id="musculoInput" class="tag-input" placeholder="Digite e pressione Enter">
+                    </div>
+                    <input type="hidden" id="musculosAlvosHidden" name="musculos_alvos">
+                    <small class="text-muted">Pressione Enter após digitar cada músculo ou selecione das sugestões</small>
+                </div>
+                
+                <!-- Sugestões rápidas de músculos -->
+                <div class="mb-3">
+                    <div class="d-flex flex-wrap gap-1" id="sugestoesMusculos"></div>
+                </div>
+                
+                <!-- Preparação -->
+                <div class="mb-3">
+                    <label for="preparacao" class="form-label">Preparação</label>
+                    <textarea class="form-control" id="preparacao" name="preparacao" rows="4"></textarea>
+                </div>
+                
+                <!-- Execução -->
+                <div class="mb-3">
+                    <label for="execucao" class="form-label">Execução</label>
+                    <textarea class="form-control" id="execucao" name="execucao" rows="4"></textarea>
+                </div>
+                
+                <!-- Dicas -->
+                <div class="mb-3">
+                    <label for="dicas" class="form-label">Dicas</label>
+                    <textarea class="form-control" id="dicas" name="dicas" rows="4"></textarea>
+                </div>
+                
+                <!-- Botões -->
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" id="cancelarBtn">Cancelar</button>
+                    <button type="submit" class="btn btn-success" id="salvarBtn">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Lista de músculos comuns para sugestões
+            const musculosComuns = [
+                'Peito', 'Antebraço', 'Tríceps', 'Bíceps', 'Ombros', 'Costas', 'Abdômen', 'Pernas', 'Glúteos','Cardio'
+            ];
+            
+            const sugestoesMusculos = document.getElementById('sugestoesMusculos');
+            const tagContainer = document.getElementById('tagContainer');
+            const musculoInput = document.getElementById('musculoInput');
+            const musculosAlvosHidden = document.getElementById('musculosAlvosHidden');
+            const imagemTreino = document.getElementById('imagemTreino');
+            const previewImagem = document.getElementById('previewImagem');
+            const limparImagem = document.getElementById('limparImagem');
+            const cancelarBtn = document.getElementById('cancelarBtn');
+            const treinoForm = document.getElementById('treinoForm');
+            const imagemFeedback = document.getElementById('imagemFeedback');
+            
+            // Validação de tipo de arquivo para imagens
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            const maxFileSize = 10 * 1024 * 1024; // 10MB para acomodar GIFs
+            let imagemValida = true;
+            
+            // Função para validar a imagem
+            function validarImagem(file) {
+                // Reset estado anterior
+                imagemTreino.classList.remove('is-invalid');
+                
+                // Se não houver arquivo, consideramos válido (não é obrigatório)
+                if (!file) {
+                    imagemValida = true;
+                    return true;
+                }
+                
+                // Verificar tipo de arquivo - mostrar mais informação para debug
+                console.log("Tipo do arquivo:", file.type);
+                if (!allowedTypes.includes(file.type)) {
+                    imagemTreino.classList.add('is-invalid');
+                    imagemFeedback.textContent = `Apenas imagens JPG, PNG e GIF são permitidas. Tipo detectado: ${file.type}`;
+                    imagemValida = false;
+                    return false;
+                }
+                
+                // Verificar tamanho do arquivo
+                if (file.size > maxFileSize) {
+                    imagemTreino.classList.add('is-invalid');
+                    imagemFeedback.textContent = 'A imagem deve ter no máximo 10MB.';
+                    imagemValida = false;
+                    return false;
+                }
+                
+                imagemValida = true;
+                return true;
+            }
+            
+            // Adicionar sugestões de músculos
+            musculosComuns.forEach(musculo => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-sm btn-outline-secondary';
+                btn.textContent = musculo;
+                btn.addEventListener('click', () => adicionarTag(musculo));
+                sugestoesMusculos.appendChild(btn);
+            });
+            
+            // Gerenciar tags de músculos
+            const tags = new Set();
+            
+            function atualizarTagsHidden() {
+                musculosAlvosHidden.value = Array.from(tags).join(',');
+            }
+            
+            function adicionarTag(texto) {
+                if (!texto || tags.has(texto)) return;
+                
+                tags.add(texto);
+                
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag';
+                tagElement.innerHTML = `${texto} <span class="close">&times;</span>`;
+                
+                tagElement.querySelector('.close').addEventListener('click', function() {
+                    tagContainer.removeChild(tagElement);
+                    tags.delete(texto);
+                    atualizarTagsHidden();
+                });
+                
+                tagContainer.insertBefore(tagElement, musculoInput);
+                musculoInput.value = '';
+                atualizarTagsHidden();
+            }
+            
+            musculoInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    const valor = this.value.trim();
+                    if (valor) {
+                        adicionarTag(valor);
+                    }
+                }
+            });
+            
+            // Preview de imagem com validação
+            imagemTreino.addEventListener('change', function() {
+                previewImagem.innerHTML = '';
+                
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    
+                    // Validar o arquivo selecionado
+                    if (validarImagem(file)) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'preview-image';
+                            previewImagem.appendChild(img);
+                        }
+                        reader.readAsDataURL(file);
+                    } else {
+                        // Limpar o campo se o arquivo for inválido
+                        this.value = '';
+                    }
+                }
+            });
+            
+            limparImagem.addEventListener('click', function() {
+                imagemTreino.value = '';
+                previewImagem.innerHTML = '';
+                imagemTreino.classList.remove('is-invalid');
+                imagemValida = true;
+            });
+            
+            // Botão Cancelar
+            cancelarBtn.addEventListener('click', function() {
+                if (confirm('Tem certeza que deseja cancelar? Todas as informações não salvas serão perdidas.')) {
+                    window.location.href = 'Lista_Treinos.php'; // Ajuste para sua página de listagem
+                }
+            });
+            
+            // Submit do formulário com validação
+            treinoForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Previne o envio automático do formulário
+                
+                // Validar o nome do treino (campo obrigatório)
+                const nomeTreino = document.getElementById('nomeTreino');
+                if (!nomeTreino.value.trim()) {
+                    nomeTreino.classList.add('is-invalid');
+                    nomeTreino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                } else {
+                    nomeTreino.classList.remove('is-invalid');
+                }
+                
+                // Verificar se há imagem selecionada e se é válida
+                if (imagemTreino.files.length > 0 && !imagemValida) {
+                    imagemTreino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+                
+                // Se tudo estiver validado, enviar o formulário
+                this.submit();
+            });
+        });
+    </script>
+</body>
+</html>
